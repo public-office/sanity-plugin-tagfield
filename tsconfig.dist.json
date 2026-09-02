@@ -1,5 +1,5 @@
 {
-  "extends": "./tsconfig.settings",
+  "extends": "./tsconfig.settings.json",
   "include": ["./src"],
   "exclude": [
     "./src/**/__fixtures__",
@@ -9,8 +9,10 @@
   ],
   "compilerOptions": {
     "rootDir": ".",
-    "outDir": "./dist",
+    "outDir": "dist",
+    "target": "esnext",
+    "module": "preserve",
     "jsx": "react-jsx",
-    "emitDeclarationOnly": true
+    "noEmit": true
   }
 }

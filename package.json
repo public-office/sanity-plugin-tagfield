@@ -1,87 +1,92 @@
 {
-  "name": "sanity-plugin-tags",
-  "version": "2.1.1",
-  "description": "A multi-tag input for Sanity Studio",
+  "name": "sanity-plugin-tagfield",
+  "version": "3.0.0",
+  "description": "A multi-tag input field for Sanity Studio",
   "keywords": [
     "sanity",
-    "sanity-plugin"
+    "sanity-plugin",
+    "tags",
+    "tag-input",
+    "react-select"
   ],
-  "homepage": "https://github.com/pcbowers/sanity-plugin-tags#readme",
+  "homepage": "https://github.com/public-office/sanity-plugin-tagfield#readme",
   "bugs": {
-    "url": "https://github.com/pcbowers/sanity-plugin-tags/issues"
+    "url": "https://github.com/public-office/sanity-plugin-tagfield/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+ssh://git@github.com/pcbowers/sanity-plugin-tags.git"
+    "url": "git+https://github.com/public-office/sanity-plugin-tagfield.git"
   },
   "license": "MIT",
+  "type": "module",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
       "source": "./src/index.ts",
-      "require": "./dist/index.js",
-      "import": "./dist/index.esm.js",
-      "default": "./dist/index.esm.js"
+      "default": "./dist/index.js"
     },
     "./package.json": "./package.json"
   },
-  "main": "./dist/index.js",
-  "module": "./dist/index.esm.js",
-  "source": "./src/index.ts",
   "types": "./dist/index.d.ts",
   "files": [
-    "dist",
-    "sanity.json",
-    "src",
-    "v2-incompatible.js"
+    "dist"
   ],
+  "sideEffects": false,
   "scripts": {
-    "build": "run-s clean && plugin-kit verify-package --silent && pkg-utils build --strict && pkg-utils --strict",
-    "clean": "rimraf dist",
-    "format": "prettier --write --cache --ignore-unknown .",
+    "build": "plugin-kit verify-package --silent && pkg-utils build --strict --check --clean",
+    "format": "oxfmt",
     "link-watch": "plugin-kit link-watch",
-    "lint": "eslint .",
-    "prepublishOnly": "run-s build",
+    "lint": "oxlint",
+    "prepare": "npm run build",
+    "prepublishOnly": "npm run build",
+    "typecheck": "tsc --noEmit",
     "watch": "pkg-utils watch --strict"
   },
+  "browserslist": "extends @sanity/browserslist-config",
   "dependencies": {
-    "@sanity/incompatible-plugin": "^1.0.4",
-    "react-select": "^5.7.0"
+    "@sanity/client": "^6 || ^7 || ^8",
+    "@sanity/ui": "^3 || ^4",
+    "react-select": "^5.10.2",
+    "rxjs": "^7"
   },
   "devDependencies": {
-    "@sanity/pkg-utils": "^2.2.13",
-    "@sanity/plugin-kit": "^3.1.6",
-    "@types/react": "^18.0.28",
-    "@typescript-eslint/eslint-plugin": "^5.52.0",
-    "@typescript-eslint/parser": "^5.52.0",
-    "eslint": "^8.34.0",
-    "eslint-config-prettier": "^8.6.0",
-    "eslint-config-sanity": "^6.0.0",
-    "eslint-plugin-prettier": "^4.2.1",
-    "eslint-plugin-react": "^7.32.2",
-    "eslint-plugin-react-hooks": "^4.6.0",
-    "npm-run-all": "^4.1.5",
-    "prettier": "^2.8.4",
-    "prettier-plugin-packagejson": "^2.4.3",
-    "react": "^18.2.0",
-    "react-dom": "^18.2.0",
-    "react-is": "^18.2.0",
-    "rimraf": "^4.1.2",
-    "rollup-plugin-postcss": "^4.0.2",
-    "typescript": "^4.9.5"
+    "@sanity/browserslist-config": "^1.0.5",
+    "@sanity/pkg-utils": "^12.3.4",
+    "@sanity/plugin-kit": "^10.0.9",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "oxfmt": "^0.63.0",
+    "oxlint": "^1.80.0",
+    "oxlint-tsgolint": "^7.0.2001",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0",
+    "rxjs": "^7.8.1",
+    "sanity": "^4.0.0",
+    "styled-components": "^6.1.15",
+    "typescript": "^6.0.3"
   },
   "peerDependencies": {
-    "react": "^18",
-    "rxjs": "^7.8.0",
-    "sanity": "^3",
-    "styled-components": "^5.3.6 || ^6.0.0"
+    "react": "^19",
+    "react-dom": "^19",
+    "sanity": "^4 || ^5 || ^6",
+    "styled-components": "^6.1"
   },
   "engines": {
-    "node": ">=14"
+    "node": ">=20.19 <22 || >=22.12"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": "./dist/index.js",
+      "./package.json": "./package.json"
+    }
+  },
+  "sanityPlugin": {
+    "verifyPackage": {
+      "tsconfig": false
+    }
   },
   "authors": [
+    "Paul Mylecharane <hi@public-office.info>",
     "P Christopher Bowers <pcbowers@gmail.com>",
     "Leo Baker-Hytch <l.bakerhytch@gmail.com>"
-  ],
-  "sanityExchangeUrl": "https://www.sanity.io/plugins/tags"
+  ]
 }

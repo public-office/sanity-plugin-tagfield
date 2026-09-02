@@ -1,6 +1,10 @@
 import {SchemaTypeDefinition} from 'sanity'
+
 import {TagsInput} from '../components/TagsInput'
 
+/**
+ * @public
+ */
 export const tagsSchema: SchemaTypeDefinition = {
   name: 'tags',
   title: 'Tags',

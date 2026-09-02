@@ -24,18 +24,20 @@ export const isSchemaReference = (type: InputType): boolean => {
  * @returns a filtered and flattened version of the initial tags array by uniqueness
  */
 export const filterUniqueTags = (tags: Tag[] = []): Tag[] => {
-  return tags.flat(Infinity).filter((firstTag, index) => {
-    const firstTagStringified = JSON.stringify({label: firstTag.label, value: firstTag.value})
+  const seen = new Set<string>()
+  const unique: Tag[] = []
 
-    return (
-      index ===
-      tags.flat(Infinity).findIndex((secondTag) => {
-        return (
-          JSON.stringify({label: secondTag.label, value: secondTag.value}) === firstTagStringified
-        )
-      })
-    )
-  })
+  for (const tag of tags.flat(Infinity)) {
+    if (!tag) continue
+
+    const identity = JSON.stringify({label: tag.label, value: tag.value})
+    if (seen.has(identity)) continue
+
+    seen.add(identity)
+    unique.push(tag)
+  }
+
+  return unique
 }
 
 /**
@@ -45,11 +47,7 @@ export const filterUniqueTags = (tags: Tag[] = []): Tag[] => {
  * @param defaultValue A value to return
  * @returns The value at the end of the path or a default value
  */
-export const get = <DefaultValue extends unknown>(
-  object: Record<string, unknown> | unknown,
-  path: string | string[],
-  defaultValue?: DefaultValue
-): any => {
+export const get = (object: unknown, path: string | string[], defaultValue?: unknown): any => {
   if (!object) return defaultValue
 
   let props: string[] | boolean = false
@@ -59,14 +57,14 @@ export const get = <DefaultValue extends unknown>(
   if (typeof path === 'string') props = path.split('.')
   if (!Array.isArray(props)) throw new Error('path must be an array or a string')
 
-  let obj: object | unknown = object
+  let obj: unknown = object
   while (props.length) {
     prop = props.shift()
     if (!prop) return defaultValue
     if (!obj) return defaultValue
-    if (obj === null || typeof obj !== 'object' || Array.isArray(obj)) return defaultValue
+    if (typeof obj !== 'object' || Array.isArray(obj)) return defaultValue
     if (!(prop in obj)) return defaultValue
-    obj = (obj as {[key: string]: unknown})[prop]
+    obj = Reflect.get(obj, prop)
   }
 
   return obj
@@ -89,10 +87,10 @@ function prototypeCheck(prop: string) {
  * @param value The value to add to the object
  * @returns True or false defining whether it is sucessfully added
  */
-export const setAtPath = <Value extends unknown>(
+export const setAtPath = (
   object: Record<string, unknown>,
   path: string | string[],
-  value: Value
+  value: unknown,
 ): boolean => {
   let props: string[] | boolean = false
 
@@ -105,16 +103,17 @@ export const setAtPath = <Value extends unknown>(
   if (!prototypeCheck(lastProp)) throw new Error('setting of prototype values not supported')
 
   let thisProp: string | undefined
-  let obj = object
+  let obj: object = object
   while ((thisProp = props.shift())) {
     if (!prototypeCheck(thisProp)) throw new Error('setting of prototype values not supported')
-    if (!thisProp) return false
-    if (!(thisProp in obj)) obj[thisProp] = {}
-    obj = obj[thisProp] as Record<string, unknown>
-    if (!obj || typeof obj !== 'object') return false
+    if (!(thisProp in obj)) Reflect.set(obj, thisProp, {})
+
+    const next: unknown = Reflect.get(obj, thisProp)
+    if (!next || typeof next !== 'object') return false
+    obj = next
   }
 
-  obj[lastProp] = value
+  Reflect.set(obj, lastProp, value)
 
   return true
 }

@@ -1,15 +1,36 @@
-# sanity-plugin-tags
+# sanity-plugin-tagfield
 
-> This is a **Sanity Studio v3** plugin.
+> This is a **Sanity Studio v4 / v5 / v6** plugin, built for **React 19**.
+>
+> A maintained fork of [`sanity-plugin-tags`](https://github.com/pcbowers/sanity-plugin-tags)
+> by P Christopher Bowers, rewritten for React 19. MIT, as the original.
 
 A multi-tag input for sanity studio. Fully featured with autocomplete capabilities, live updates, predefined tag options, style and component customizability, and much more.
 
-![Example Picture](https://github.com/pcbowers/sanity-plugin-tags/blob/main/docs/example.png?raw=true)
+![Example Picture](https://github.com/public-office/sanity-plugin-tagfield/blob/main/docs/example.png?raw=true)
 
 ## Install
 
-Sanity v3: `npm install sanity-plugin-tags`  
-Sanity v2: `sanity install tags`
+```sh
+npm install sanity-plugin-tagfield
+```
+
+### Requirements
+
+| Requirement       | Supported               |
+| ----------------- | ----------------------- |
+| React             | 19                      |
+| Sanity Studio     | v4, v5, v6              |
+| styled-components | 6.1+                    |
+| Node              | >=20.19 <22, or >=22.12 |
+
+React 19 is required rather than optional: `@sanity/ui` v4 imports
+`react/compiler-runtime`, which only exists in React 19, and Sanity Studio v5+
+dropped React 18 outright. Studios still on React 18 should stay on
+`sanity-plugin-tags@2` (the upstream package).
+
+The package is published as **ESM only**, matching Sanity Studio v5+. Node's
+`require(esm)` support means a CommonJS consumer still loads it correctly.
 
 ## Use
 
@@ -17,7 +38,7 @@ Add it as a plugin in `sanity.config.ts` (or .js):
 
 ```ts
 import {defineConfig} from 'sanity'
-import {tags} from 'sanity-plugin-tags'
+import {tags} from 'sanity-plugin-tagfield'
 
 export default defineConfig({
   //...
@@ -243,6 +264,15 @@ If you want to override React Select's components see [Parts](#parts) for more i
 
 ## Develop & test
 
+```sh
+npm install
+npm run build      # verify the package and build dist/
+npm run typecheck  # tsc --noEmit
+npm run lint       # oxlint
+npm run format     # oxfmt
+npm run link-watch # hot-reload into a local studio
+```
+
 ## Contribute
 
 I love feedback, and any help is appreciated! Feel free to install the plugin, submit an issue, or open a PR.
@@ -252,6 +282,43 @@ with default configuration for build & watch scripts.
 
 See [Testing a plugin in Sanity Studio](https://github.com/sanity-io/plugin-kit#testing-a-plugin-in-sanity-studio)
 on how to run this plugin with hotreload in the studio.
+
+## A note on the build config
+
+`tsconfig.dist.json` sets `"jsx": "react-jsx"` and `package.json` disables
+plugin-kit's `tsconfig` check. plugin-kit recommends `"jsx": "preserve"`, but
+`@sanity/pkg-utils` v12 reads the JSX mode from that file — with `preserve` it
+emits **raw, untranspiled JSX into `dist/`**, which throws
+`SyntaxError: Unexpected token '<'` in any consumer that does not transform
+JSX inside `node_modules`. `react-jsx` produces the correct
+`react/jsx-runtime` output.
+
+## Upgrading from sanity-plugin-tags v2
+
+v3 keeps the schema types, the field shape and every documented option, so most
+studios need no changes beyond the install. Be aware of the following:
+
+- **ESM only.** `main`, `module` and the `require` export condition are gone.
+- **React 19 required.** `react-select` is now `^5.10.2`, the first release to
+  declare React 19 support. React 18 studios should stay on v2.
+- **`TagsInput` no longer forwards a ref.** Sanity's form builder never passed
+  one, so the old `forwardRef` wrapper forwarded a ref that nothing supplied.
+  React 19 also no longer needs `forwardRef`.
+- **The Sanity v2 compatibility shim was removed**, along with `sanity.json` and
+  the `@sanity/incompatible-plugin` dependency.
+- **Theming follows the Studio, not the OS.** Colours are read from Sanity UI's
+  CSS custom properties instead of swapping a stylesheet based on
+  `usePrefersDark()`, so a Studio forced to light while the OS is dark now
+  renders correctly. This also removed the PostCSS build step.
+
+### Fixes that change stored data
+
+- **Multi-reference tag fields now write a `_key`.** Previously reference array
+  items were saved without one, which Sanity reports as "missing keys".
+- **Clearing a field now emits `unset()`** instead of writing an empty array.
+- **`_key` falls back sensibly.** An existing `_key` is preserved, so upgrading
+  does not churn keys on existing documents. Fields configured with a
+  `customValue` path previously produced an `undefined` key.
 
 ## Acknowledgements
 

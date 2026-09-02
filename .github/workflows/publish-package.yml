@@ -7,14 +7,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Git Repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - run: |
-          git config user.name pcbowers
-          git config user.email pcbowers@gmail.com
+          git config user.name "Paul Mylecharane"
+          git config user.email hi@public-office.info
       - name: Setup Node.js
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v4
         with:
-          node-version: '16.x'
+          node-version: '22.x'
           registry-url: 'https://registry.npmjs.org'
       - name: Install Node.js Dependencies
         run: npm ci

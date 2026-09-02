@@ -1,6 +1,14 @@
 import {SanityClient} from '@sanity/client'
+
 import {GeneralTag, RefinedTags, RefTag, Tag, UnrefinedTags} from '../types'
 import {get, isPlainObject, setAtPath} from './helpers'
+
+/**
+ * Narrows an already-established array to reference tags by inspecting its
+ * first member, mirroring how Sanity stores homogeneous arrays.
+ */
+const isRefTagArray = (tags: unknown[]): tags is RefTag[] =>
+  tags.length > 0 && isPlainObject(tags[0]) && '_ref' in tags[0] && '_type' in tags[0]
 
 interface PrepareTagInput {
   customLabel?: string
@@ -14,15 +22,22 @@ interface PrepareTagInput {
  * @returns a formatted tag that can be used with react-select without overriding custom labels or values
  */
 const prepareTag = ({customLabel = 'label', customValue = 'value'}: PrepareTagInput) => {
-  return (tag: GeneralTag) => {
+  return (tag: GeneralTag): Tag => {
+    const value = get(tag, customValue)
+
     const tempTag: Tag = {
       ...tag,
       _type: 'tag',
-      _key: tag.value,
+      // Preserve a key that already exists on the stored array item so that
+      // re-saving a document does not churn every `_key` in the array. Fall back
+      // to the referenced document id, then to the resolved value. The previous
+      // implementation unconditionally used the raw `tag.value`, which produced
+      // an `undefined` key whenever a `customValue` path was configured.
+      _key: tag._key ?? tag._id ?? value ?? tag.value,
       _labelTemp: tag.label,
       _valueTemp: tag.value,
       label: get(tag, customLabel),
-      value: get(tag, customValue),
+      value,
     }
     return tempTag
   }
@@ -32,6 +47,7 @@ interface RevertTagInput<IsReference extends boolean = boolean> {
   customLabel?: string
   customValue?: string
   isReference: IsReference
+  isMulti?: boolean
 }
 
 /**
@@ -42,25 +58,31 @@ interface RevertTagInput<IsReference extends boolean = boolean> {
  * @returns a formatted tag that restores any custom labels or values while also preparing the tag to be saved by sanity
  */
 function revertTag<IsReference extends true>(
-  params: RevertTagInput<IsReference>
+  params: RevertTagInput<IsReference>,
 ): (tag: Tag) => RefTag
 function revertTag<IsReference extends false>(
-  params: RevertTagInput<IsReference>
+  params: RevertTagInput<IsReference>,
 ): (tag: Tag) => GeneralTag
 function revertTag<IsReference extends boolean>(
-  params: RevertTagInput<IsReference>
+  params: RevertTagInput<IsReference>,
 ): (tag: Tag) => RefTag | GeneralTag
 function revertTag<IsReference extends boolean>({
   customLabel = 'label',
   customValue = 'value',
   isReference,
+  isMulti = false,
 }: RevertTagInput<IsReference>) {
   return (tag: Tag): RefTag | GeneralTag => {
-    if (isReference === true) {
+    if (isReference) {
       const tempTag: RefTag = {
         _ref: tag._id,
         _type: 'reference',
       }
+
+      // Array items must carry a `_key`; without one Sanity reports "missing
+      // keys" on every multi-reference tag field. Single reference fields are
+      // not array items, so they are left untouched.
+      if (isMulti) tempTag._key = tag._key ?? tag._id
 
       return tempTag
     }
@@ -110,14 +132,30 @@ export const prepareTags = async <TagType extends UnrefinedTags>({
   if (Array.isArray(tags) && !tags.length) return []
 
   // reference array
-  if (Array.isArray(tags) && '_ref' in tags[0] && '_type' in tags[0])
-    if ('_ref' in tags[0] && '_type' in tags[0]) {
-      return (
-        await client.fetch('*[_id in $refs]', {
-          refs: tags.map((tag) => tag._ref),
-        })
-      ).map(prepare)
-    }
+  if (Array.isArray(tags) && isRefTagArray(tags)) {
+    const refs = tags.map((tag) => tag._ref)
+    const keysByRef = new Map(tags.map((tag): [string, string | undefined] => [tag._ref, tag._key]))
+
+    const documents = await client.fetch<GeneralTag[]>('*[_id in $refs]', {refs})
+    const documentsById = new Map(
+      documents.map((doc): [string, GeneralTag] => [String(doc._id), doc]),
+    )
+
+    // `*[_id in $refs]` resolves in document order, not in the order the refs
+    // were given, so mapping the result directly silently reordered the field
+    // on every load. Walk the original refs instead, and skip any reference
+    // whose target no longer exists.
+    return refs.flatMap((ref) => {
+      const doc = documentsById.get(ref)
+      if (!doc) return []
+
+      const tag = prepare(doc)
+      const storedKey = keysByRef.get(ref)
+      if (storedKey) tag._key = storedKey
+
+      return [tag]
+    })
+  }
 
   // object array
   if (Array.isArray(tags)) return tags.map(prepare)
@@ -136,7 +174,7 @@ export const prepareTags = async <TagType extends UnrefinedTags>({
  * @returns A prepared list of tags that preserves any custom labels or values
  */
 export const prepareTagsAsList = async <TagType extends UnrefinedTags>(
-  preparedTagsOptions: PrepareTagsInput<TagType>
+  preparedTagsOptions: PrepareTagsInput<TagType>,
 ): Promise<Tag[]> => {
   const preparedTags = await prepareTags(preparedTagsOptions)
 
@@ -147,7 +185,7 @@ export const prepareTagsAsList = async <TagType extends UnrefinedTags>(
 
 interface RevertTagsInput<
   IsReference extends boolean = boolean,
-  IsMulti extends boolean = boolean
+  IsMulti extends boolean = boolean,
 > {
   tags: RefinedTags
   customLabel?: string
@@ -164,31 +202,31 @@ interface RevertTagsInput<
  * @returns a formatted list of tag(s) that restores any custom labels or values while also preparing the tag(s) to be saved by sanity
  */
 export function revertTags<IsReference extends true, IsMulti extends true>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): RefTag[]
 export function revertTags<IsReference extends true, IsMulti extends false>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): RefTag | undefined
 export function revertTags<IsReference extends false, IsMulti extends true>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): GeneralTag[]
 export function revertTags<IsReference extends false, IsMulti extends false>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): GeneralTag | undefined
 export function revertTags<IsReference extends boolean, IsMulti extends false>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): RefTag | GeneralTag | undefined
 export function revertTags<IsReference extends boolean, IsMulti extends true>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): RefTag[] | GeneralTag[]
 export function revertTags<IsReference extends false, IsMulti extends boolean>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): GeneralTag | GeneralTag[] | undefined
 export function revertTags<IsReference extends true, IsMulti extends boolean>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): RefTag | RefTag[] | undefined
 export function revertTags<IsReference extends boolean, IsMulti extends boolean>(
-  params: RevertTagsInput<IsReference, IsMulti>
+  params: RevertTagsInput<IsReference, IsMulti>,
 ): UnrefinedTags
 export function revertTags<IsReference extends boolean, IsMulti extends boolean>({
   tags,
@@ -197,7 +235,7 @@ export function revertTags<IsReference extends boolean, IsMulti extends boolean>
   isMulti,
   isReference,
 }: RevertTagsInput<IsReference, IsMulti>): UnrefinedTags {
-  const revert = revertTag({customLabel, customValue, isReference})
+  const revert = revertTag({customLabel, customValue, isReference, isMulti})
 
   // if tags are undefined
   if (tags === undefined) return undefined
