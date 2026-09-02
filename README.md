@@ -293,14 +293,15 @@ emits **raw, untranspiled JSX into `dist/`**, which throws
 JSX inside `node_modules`. `react-jsx` produces the correct
 `react/jsx-runtime` output.
 
-## Upgrading from sanity-plugin-tags v2
+## Migrating from sanity-plugin-tags
 
-v3 keeps the schema types, the field shape and every documented option, so most
-studios need no changes beyond the install. Be aware of the following:
+This package keeps the schema types, the field shape and every documented option
+of `sanity-plugin-tags` v2, so a studio moving across needs no changes beyond
+swapping the dependency and the import. Be aware of the following:
 
 - **ESM only.** `main`, `module` and the `require` export condition are gone.
 - **React 19 required.** `react-select` is now `^5.10.2`, the first release to
-  declare React 19 support. React 18 studios should stay on v2.
+  declare React 19 support. React 18 studios should stay on `sanity-plugin-tags@2`.
 - **`TagsInput` no longer forwards a ref.** Sanity's form builder never passed
   one, so the old `forwardRef` wrapper forwarded a ref that nothing supplied.
   React 19 also no longer needs `forwardRef`.
