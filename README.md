@@ -7,8 +7,6 @@
 
 A multi-tag input for sanity studio. Fully featured with autocomplete capabilities, live updates, predefined tag options, style and component customizability, and much more.
 
-![Example Picture](https://github.com/public-office/sanity-plugin-tagfield/blob/main/docs/example.png?raw=true)
-
 ## Install
 
 ```sh
